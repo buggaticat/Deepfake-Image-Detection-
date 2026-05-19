@@ -1,0 +1,31 @@
+# ==========================================
+# 1. Python Environment & Caching
+# ==========================================
+.venv/
+__pycache__/
+*.pyc
+
+# ==========================================
+# 2. Heavy Deep Learning Datasets (Blocked)
+# ==========================================
+# Blocks the thousands of images inside data/ but allows the directory structure
+data/**/*
+
+# ==========================================
+# 3. CSV Tracking Rules & Exceptions
+# ==========================================
+# Ignore all CSV files by default to protect against massive data leaks
+*.csv
+
+# FORCE Git to track your structural dataset maps explicitly
+!metadata_train.csv
+!metadata_validation.csv
+!metadata_test.csv
+
+# ==========================================
+# 4. Local Workspace Clutter
+# ==========================================
+.ipynb_checkpoints/
+Untitled.ipynb
+tempCodeRunnerFile*
+.DS_Store
