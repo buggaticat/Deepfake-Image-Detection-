@@ -1,8 +1,21 @@
 import os
+import yaml
 import pandas as pd
 from datasets import load_dataset
 from tqdm import tqdm
 from run_load_data import count_saved, load_config
+
+def load_config(proj_status):
+    config_path = f"config/{proj_status}.yaml"
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+def count_saved(data_root, split_name):
+    real_dir = os.path.join(data_root, split_name, "real")
+    fake_dir = os.path.join(data_root, split_name, "fake")
+    real = len(os.listdir(real_dir)) if os.path.exists(real_dir) else 0
+    fake = len(os.listdir(fake_dir)) if os.path.exists(fake_dir) else 0
+    return real, fake
 
 def get_and_materialize(ds, size, probabilities, split_name, idx, data_root="data", seed=42):
     n_real = int(size * probabilities[0])
@@ -85,14 +98,14 @@ if __name__ == "__main__":
     test_split       = cfg['data']['splits']['test']
 
     print("Building train set...")
-    ds_train = load_dataset(dataset_name, subset, split="train", streaming=True).skip(50006)
-    get_and_materialize(ds_train, train_split, probabilities, "train", idx = 50005, data_root=data_root, seed=seed)
+    ds_train = load_dataset(dataset_name, subset, split="train", streaming=True)
+    get_and_materialize(ds_train, train_split, probabilities, "train", idx = 0, data_root=data_root, seed=seed)
     
-    #print("Building validation set...")
-    ##ds_validation = load_dataset(dataset_name, subset, split="validation", streaming=True).skip(10001)
-    #get_and_materialize(ds_validation, validation_split, probabilities, "validation", idx = 10000, data_root=data_root, seed=seed)
+    print("Building validation set...")
+    ds_validation = load_dataset(dataset_name, subset, split="validation", streaming=True)
+    get_and_materialize(ds_validation, validation_split, probabilities, "validation", idx = 0, data_root=data_root, seed=seed)
 
-    #print("Building test set...")
-    #ds_test = load_dataset(dataset_name, subset, split="test", streaming=True).skip(10001)
-    #get_and_materialize(ds_test, test_split, probabilities, "test", idx = 10000, data_root=data_root, seed=seed)
+    print("Building test set...")
+    ds_test = load_dataset(dataset_name, subset, split="test", streaming=True)
+    get_and_materialize(ds_test, test_split, probabilities, "test", idx = 0, data_root=data_root, seed=seed)
         

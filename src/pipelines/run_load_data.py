@@ -1,22 +1,9 @@
-import os
 import re
 import subprocess
 import sys
-import yaml
+from load_data import load_config, count_saved
 
-def load_config(proj_status):
-    config_path = f"config/{proj_status}.yaml"
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
-
-def count_saved(data_root, split_name):
-    real_dir = os.path.join(data_root, split_name, "real")
-    fake_dir = os.path.join(data_root, split_name, "fake")
-    real = len(os.listdir(real_dir)) if os.path.exists(real_dir) else 0
-    fake = len(os.listdir(fake_dir)) if os.path.exists(fake_dir) else 0
-    return real, fake
-
-def patch_load_data(load_data_path, split_name, idx, real_count, fake_count):
+def patch_load_data(load_data_path, split_name, idx):
     with open(load_data_path, "r") as f:
         content = f.read()
 
@@ -53,11 +40,12 @@ def all_done(splits, data_root):
 
 
 if __name__ == "__main__":
-    cfg = load_config("local")
+    cfg = load_config("local")['load_data']
 
     load_data_path = cfg['run_load_data']['load_data_path']
-    data_root      = cfg['run_load_data']['data_root']
-    splits         = cfg['run_load_data']['splits']
+
+    data_root      = cfg['load_data']['data_root']
+    splits         = cfg['load_data']['splits']
 
     run = 0
     while not all_done(splits, data_root):
@@ -73,6 +61,6 @@ if __name__ == "__main__":
             total = real + fake
             print(f"  {split_name}: {total} saved ({real} real, {fake} fake)")
             if total > 0:
-                patch_load_data(load_data_path, split_name, total, real, fake)
+                patch_load_data(load_data_path, split_name, total)
 
         print("[runner] Restarting load_data.py with updated offsets...")

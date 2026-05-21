@@ -1,19 +1,24 @@
 import os
 import torch
 import pandas as pd
+from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from transformers import CLIPTokenizer, CLIPModel
-from run_load_data import load_config
+from load_data import load_config
+from preprocess import transform_img
 
 LABEL_MAP = {"real": 0, "fake": 1}
 
-
 class DeepFakeDataset(Dataset):
-    def __init__(self, csv_path, clip_model_name, data_root, split, device):
+    def __init__(self, csv_path, clip_model_name, data_root, split, device, image_size, mean, std, num_output_channels):
         self.df = pd.read_csv(csv_path)
         self.data_root = data_root
         self.split = split
         self.device = device
+        self.image_size     = image_size
+        self.mean           = mean
+        self.std            = std
+        self.num_output_channels = num_output_channels
 
         self.tokenizer = CLIPTokenizer.from_pretrained(clip_model_name)
         self.clip_model = CLIPModel.from_pretrained(clip_model_name).to(device)
@@ -25,15 +30,12 @@ class DeepFakeDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         label = row['label']
-        prompt = row['prompt']
+        prompt = row['prompt'] if pd.notna(row['prompt']) else ""
 
-        # Load vit/efficientnet preprocessed tensor
-        vit_efficientnet_tensor_path = os.path.join(self.data_root, f"vit_efficientnet_{self.split}", label, f"preprocessed_{idx}.pt")
-        vit_efficientnet_tensor = torch.load(vit_efficientnet_tensor_path, weights_only=True)
-
-        # Load fft preprocessed tensor
-        fft_tensor_path = os.path.join(self.data_root, f"fft_{self.split}", label, f"preprocessed_{idx}.pt")
-        fft_tensor = torch.load(fft_tensor_path, weights_only=True)
+        img = Image.open(row['file_path']).convert('RGB')
+        vit_efficientnet_tensor = transform_img(img, "vit_efficientnet", self.image_size, self.mean, self.std, self.num_output_channels)
+        
+        fft_tensor = transform_img(img, "fft", self.image_size, self.mean, self.std, self.num_output_channels)
 
         # Tokenize and encode with CLIP
         token_ids = self.tokenizer(
@@ -45,10 +47,14 @@ class DeepFakeDataset(Dataset):
         ).to(self.device)
 
         with torch.no_grad():
-            clip_embedding = self.clip_model.get_text_features(**token_ids).squeeze(0)  # (512,)
-
-        # Encode label
-        label_tensor = torch.tensor(LABEL_MAP[label], dtype=torch.float32)
+            text_features = self.clip_model.get_text_features(**token_ids)
+            # get_text_features should return a tensor — if it returns an object, extract it
+            if hasattr(text_features, 'pooler_output'):
+                clip_embedding = text_features.pooler_output.squeeze(0)
+            else:
+                clip_embedding = text_features.squeeze(0)
+            # Encode label
+            label_tensor = torch.tensor(LABEL_MAP[label], dtype=torch.float32)
 
         return vit_efficientnet_tensor, fft_tensor, clip_embedding, label_tensor
 
@@ -65,19 +71,35 @@ def get_dataloader(dataset, batch_size, num_workers, shuffle):
 
 if __name__ == "__main__":
     cfg = load_config("local")['dataset']
+    cfg_preprocess = load_config("local")['preprocess']
+
+    image_size           = cfg_preprocess['image_size']
+    mean                 = cfg_preprocess['mean']
+    std                  = cfg_preprocess['std']
+    num_output_channels  = cfg_preprocess['num_output_channels']
+    train_csv_path      = cfg_preprocess['csv_path']['train']
+    validation_csv_path = cfg_preprocess['csv_path']['validation']
+    test_csv_path       = cfg_preprocess['csv_path']['test']
 
     batch_size          = cfg['batch_size']
     num_workers         = cfg['num_workers']
-    train_csv_path      = cfg['csv_path']['train']
-    validation_csv_path = cfg['csv_path']['validation']
-    test_csv_path       = cfg['csv_path']['test']
     clip_model_name     = cfg['clip_model_name']
-    data_root           = cfg['data_root']
-    device              = cfg['device']
+    preprocessed_data_root = cfg['preprocessed_data_root']
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    train_dataset      = DeepFakeDataset(train_csv_path, clip_model_name, data_root, "train", device)
-    validation_dataset = DeepFakeDataset(validation_csv_path, clip_model_name, data_root, "validation", device)
-    test_dataset       = DeepFakeDataset(test_csv_path, clip_model_name, data_root, "test", device)
+    train_dataset = DeepFakeDataset(
+        train_csv_path, clip_model_name, preprocessed_data_root, "train", device,
+        image_size, mean, std, num_output_channels
+    )
+    validation_dataset = DeepFakeDataset(
+        validation_csv_path, clip_model_name, preprocessed_data_root, "validation", device,
+        image_size, mean, std, num_output_channels
+    )
+    test_dataset = DeepFakeDataset(
+        test_csv_path, clip_model_name, preprocessed_data_root, "test", device,
+        image_size, mean, std, num_output_channels
+    )
 
     train_loader      = get_dataloader(train_dataset, batch_size, num_workers, shuffle=True)
     validation_loader = get_dataloader(validation_dataset, batch_size, num_workers, shuffle=False)
