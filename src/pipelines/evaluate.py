@@ -110,10 +110,10 @@ if __name__ == "__main__":
     mean                 = cfg_preprocess['mean']
     std                  = cfg_preprocess['std']
     num_output_channels  = cfg_preprocess['num_output_channels']
+    test_csv_path       = cfg_preprocess['csv_path']['test']
 
-    test_csv_path       = cfg_dataset['csv_path']['test']
     clip_model_name     = cfg_dataset['clip_model_name']
-    data_root           = cfg_dataset['data_root']
+    preprocessed_data_root = cfg_dataset['preprocessed_data_root']
     batch_size          = cfg_dataset['batch_size']
     num_workers         = cfg_dataset['num_workers']
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     test_dataset = DeepFakeDataset(
-        test_csv_path, clip_model_name, data_root, "test", device,
+        test_csv_path, clip_model_name, preprocessed_data_root, "test", device,
         image_size, mean, std, num_output_channels
     )
     test_loader = get_dataloader(test_dataset, batch_size, num_workers, shuffle=False)

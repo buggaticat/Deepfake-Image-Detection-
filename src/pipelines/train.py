@@ -74,7 +74,7 @@ def train():
     train_csv_path      = cfg['csv_path']['train']
     validation_csv_path = cfg['csv_path']['validation']
     clip_model_name     = cfg['clip_model_name']
-    data_root           = cfg['data_root']
+    preprocessed_data_root = cfg['preprocessed_data_root']
 
     learning_rate   = cfg_train['learning_rate']
     weight_decay    = cfg_train['weight_decay']
@@ -84,11 +84,11 @@ def train():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     train_dataset = DeepFakeDataset(
-        train_csv_path, clip_model_name, data_root, "train", device,
+        train_csv_path, clip_model_name, preprocessed_data_root, "train", device,
         image_size, mean, std, num_output_channels
     )
     validation_dataset = DeepFakeDataset(
-        validation_csv_path, clip_model_name, data_root, "validation", device,
+        validation_csv_path, clip_model_name, preprocessed_data_root, "validation", device,
         image_size, mean, std, num_output_channels
     )
 

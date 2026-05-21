@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import timm
-from run_load_data import load_config
+from load_data import load_config
 
 class FFTBranch(nn.Module):
     def __init__(self):
@@ -81,9 +81,7 @@ def build_model(device):
 
 
 if __name__ == "__main__":
-    cfg    = load_config("local")
-    device = cfg['model']['device']
-    device = device if torch.cuda.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
  
     model  = build_model(device)
 
