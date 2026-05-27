@@ -4,9 +4,9 @@ from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import torchmetrics
 from tqdm import tqdm
-from load_data import load_config
-from dataset import DeepFakeDataset, get_dataloader
-from model import build_model
+from .load_data import load_config
+from .dataset import DeepFakeDataset, get_dataloader
+from .model import build_model
 
 def train_one_epoch(model, dataloader, optimizer, criterion, scaler, device):
     model.train()
@@ -68,11 +68,11 @@ def train():
     mean                 = cfg_preprocess['mean']
     std                  = cfg_preprocess['std']
     num_output_channels  = cfg_preprocess['num_output_channels']
+    train_csv_path       = cfg_preprocess['csv_path']['train']
+    validation_csv_path  = cfg_preprocess['csv_path']['validation']
 
     batch_size          = cfg['batch_size']
     num_workers         = cfg['num_workers']
-    train_csv_path      = cfg['csv_path']['train']
-    validation_csv_path = cfg['csv_path']['validation']
     clip_model_name     = cfg['clip_model_name']
     preprocessed_data_root = cfg['preprocessed_data_root']
 
@@ -97,7 +97,7 @@ def train():
 
     model = build_model(device)
     optimizer = torch.optim.Adam(model.parameters(), lr = learning_rate, weight_decay = weight_decay)
-    loss_function = nn.BCELoss()
+    loss_function = torch.nn.BCEWithLogitsLoss()
     scheduler = ReduceLROnPlateau(optimizer)
     scaler = torch.amp.GradScaler(device)
     best_val_loss = float('inf')
@@ -105,8 +105,22 @@ def train():
 
     os.makedirs(checkpoint_dir, exist_ok=True)
     checkpoint_path = os.path.join(checkpoint_dir, "best_model.pt")
+    start_epoch = 1
 
-    for epoch in range(num_epochs):
+    if os.path.exists(checkpoint_path):
+        print(f"Found pre-existing checkpoint file. Resuming weights layout...")
+
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        start_epoch = checkpoint["epoch"]
+        
+        best_val_loss = checkpoint.get("best_val_loss", float('inf'))
+        best_auroc = checkpoint.get("best_auroc", 0.0)
+        
+        print(f"Successfully loaded. Resuming starting from Epoch {start_epoch + 1}!")
+
+    for epoch in range(start_epoch - 1, num_epochs):
         print(f"\nEpoch {epoch + 1}/{num_epochs}")
         print("-" * 30)
         
@@ -122,19 +136,22 @@ def train():
  
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            best_auroc    = auroc
-            torch.save({
-                "epoch":                epoch + 1,
-                "model_state_dict":     model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "val_loss":             val_loss,
-                "auroc":                auroc,
-                "f1":                   f1
-            }, checkpoint_path)
-            print(f"  ✓ Checkpoint saved → {checkpoint_path}")
+
+        torch.save({
+            "epoch":                epoch + 1,
+            "model_state_dict":     model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "val_loss":             val_loss,
+            "auroc":                auroc,
+            "f1":                   f1
+        }, checkpoint_path)
+
+        print(f"  ✓ Checkpoint saved → {checkpoint_path}")
  
         if auroc > best_auroc:
             best_auroc = auroc
 
 if __name__ == "__main__":
     train()
+
+#python src/pipelines/train.py

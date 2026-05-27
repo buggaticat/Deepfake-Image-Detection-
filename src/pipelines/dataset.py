@@ -1,11 +1,10 @@
-import os
 import torch
 import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from transformers import CLIPTokenizer, CLIPModel
-from load_data import load_config
-from preprocess import transform_img
+from .load_data import load_config
+from .preprocess import transform_img
 
 LABEL_MAP = {"real": 0, "fake": 1}
 
@@ -15,19 +14,20 @@ class DeepFakeDataset(Dataset):
         self.data_root = data_root
         self.split = split
         self.device = device
-        self.image_size     = image_size
-        self.mean           = mean
-        self.std            = std
+        self.image_size = image_size
+        self.mean = mean
+        self.std = std
         self.num_output_channels = num_output_channels
 
         self.tokenizer = CLIPTokenizer.from_pretrained(clip_model_name)
         self.clip_model = CLIPModel.from_pretrained(clip_model_name).to(device)
-        self.clip_model.eval()  # inference mode, no gradients needed
+        self.clip_model.eval() 
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
+        idx = int(idx)
         row = self.df.iloc[idx]
         label = row['label']
         prompt = row['prompt'] if pd.notna(row['prompt']) else ""
@@ -37,7 +37,6 @@ class DeepFakeDataset(Dataset):
         
         fft_tensor = transform_img(img, "fft", self.image_size, self.mean, self.std, self.num_output_channels)
 
-        # Tokenize and encode with CLIP
         token_ids = self.tokenizer(
             prompt,
             return_tensors="pt",
@@ -48,12 +47,10 @@ class DeepFakeDataset(Dataset):
 
         with torch.no_grad():
             text_features = self.clip_model.get_text_features(**token_ids)
-            # get_text_features should return a tensor — if it returns an object, extract it
             if hasattr(text_features, 'pooler_output'):
                 clip_embedding = text_features.pooler_output.squeeze(0)
             else:
                 clip_embedding = text_features.squeeze(0)
-            # Encode label
             label_tensor = torch.tensor(LABEL_MAP[label], dtype=torch.float32)
 
         return vit_efficientnet_tensor, fft_tensor, clip_embedding, label_tensor
@@ -65,7 +62,7 @@ def get_dataloader(dataset, batch_size, num_workers, shuffle):
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=False
     )
 
 
@@ -111,3 +108,5 @@ if __name__ == "__main__":
     print(f"FFT tensor:              {fft_batch.shape}")
     print(f"CLIP embedding:          {clip_batch.shape}")
     print(f"Labels:                  {label_batch.shape}")
+
+#python src/pipelines/dataset.py

@@ -1,7 +1,7 @@
 import re
 import subprocess
 import sys
-from load_data import load_config, count_saved
+from .load_data import load_config, count_saved
 
 def patch_load_data(load_data_path, split_name, idx):
     with open(load_data_path, "r") as f:
@@ -39,7 +39,7 @@ def all_done(splits, data_root):
     return True
 
 
-if __name__ == "__main__":
+def main():
     cfg = load_config("local")['load_data']
 
     load_data_path = cfg['run_load_data']['load_data_path']
@@ -64,3 +64,9 @@ if __name__ == "__main__":
                 patch_load_data(load_data_path, split_name, total)
 
         print("[runner] Restarting load_data.py with updated offsets...")
+
+if __name__ == "__main__":
+    main()
+
+
+#python src/pipelines/run_load_data.py

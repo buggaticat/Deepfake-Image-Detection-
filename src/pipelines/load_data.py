@@ -1,12 +1,13 @@
 import os
 import yaml
 import pandas as pd
+from pathlib import Path
 from datasets import load_dataset
 from tqdm import tqdm
-from run_load_data import count_saved, load_config
 
 def load_config(proj_status):
-    config_path = f"config/{proj_status}.yaml"
+    proj_root = Path(__file__).resolve().parent.parent.parent
+    config_path = os.path.join(proj_root, "config", f"{proj_status}.yaml")
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
@@ -108,4 +109,6 @@ if __name__ == "__main__":
     print("Building test set...")
     ds_test = load_dataset(dataset_name, subset, split="test", streaming=True)
     get_and_materialize(ds_test, test_split, probabilities, "test", idx = 0, data_root=data_root, seed=seed)
-        
+
+
+#python src/pipelines/load_data.py

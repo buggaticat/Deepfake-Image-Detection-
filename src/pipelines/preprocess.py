@@ -4,7 +4,7 @@ import pandas as pd
 from PIL import Image
 from tqdm import tqdm
 from transformers import BlipProcessor, BlipForConditionalGeneration
-from load_data import load_config
+from .load_data import load_config
 
 def transform_img(img, model, image_size, mean, std, num_output_channels):
     if model == "vit_efficientnet":  
@@ -77,4 +77,5 @@ if __name__ == "__main__":
 
     df_test = pd.read_csv(csv_path_test)
     fillna_prompt(df_test, blip_model, processor, device, csv_path_test)
-  
+
+#python src/pipelines/preprocess.py

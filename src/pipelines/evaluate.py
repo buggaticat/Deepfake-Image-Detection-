@@ -5,9 +5,9 @@ import pandas as pd
 import matplotlib.pyplot as plt   
 import seaborn as sns
 from tqdm import tqdm              
-from load_data import load_config  
-from model import build_model
-from dataset import DeepFakeDataset, get_dataloader
+from .load_data import load_config  
+from .model import build_model
+from .dataset import DeepFakeDataset, get_dataloader
 
 
 def load_checkpoint(checkpoint_path, device):
@@ -132,3 +132,5 @@ if __name__ == "__main__":
     model = load_checkpoint(checkpoint_path, device)
     confusion_matrix = evaluate(model, test_loader, device, results_dir)
     plot_confusion_matrix(confusion_matrix, results_dir)
+
+#python src/pipelines/evaluate.py

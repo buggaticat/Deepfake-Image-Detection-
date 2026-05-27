@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import timm
-from load_data import load_config
+from .load_data import load_config
 
 class FFTBranch(nn.Module):
     def __init__(self):
@@ -95,3 +95,5 @@ if __name__ == "__main__":
  
     print(f"Output shape: {output.shape}")   # should be (2, 1)
     print(f"Output values: {output}")        # should be between 0 and 1
+
+#python src/pipelines/model.py
